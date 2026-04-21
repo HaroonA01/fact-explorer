@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FactCard } from '../../src/components/FactCard';
-import { Colors } from '../../src/constants/colors';
+import { useTheme } from '../../src/contexts/ThemeContext';
 import { Layout } from '../../src/constants/layout';
 import { CATEGORIES } from '../../src/data/categories';
 import { getFactsByCategory } from '../../src/data/facts';
@@ -23,6 +23,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 export default function CategoryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
 
@@ -40,35 +41,33 @@ export default function CategoryScreen() {
 
   if (!category || facts.length === 0) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Category not found</Text>
+      <View style={[styles.errorContainer, { backgroundColor: colors.background }]}>
+        <Text style={[styles.errorText, { color: colors.textTertiary }]}>Category not found</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.root}>
-      {/* Header */}
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + Layout.spacing.sm }]}>
         <Pressable
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             router.back();
           }}
-          style={styles.backButton}
+          style={[styles.backButton, { backgroundColor: colors.surfaceSecondary }]}
         >
-          <Ionicons name="chevron-back" size={24} color={Colors.text} />
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
         </Pressable>
         <View style={styles.headerCenter}>
-          <Text style={styles.categoryLabel}>{category.name}</Text>
-          <Text style={styles.factCount}>
+          <Text style={[styles.categoryLabel, { color: colors.text }]}>{category.name}</Text>
+          <Text style={[styles.factCount, { color: colors.textTertiary }]}>
             {activeIndex + 1} of {facts.length}
           </Text>
         </View>
         <View style={styles.backButton} />
       </View>
 
-      {/* Progress dots */}
       <View style={styles.dots}>
         {facts.map((_, i) => (
           <Pressable
@@ -78,14 +77,16 @@ export default function CategoryScreen() {
             }}
             style={[
               styles.dot,
-              { backgroundColor: i === activeIndex ? category.color : Colors.separator },
+              {
+                backgroundColor:
+                  i === activeIndex ? category.color : colors.separator,
+              },
               i === activeIndex && styles.dotActive,
             ]}
           />
         ))}
       </View>
 
-      {/* Facts pager */}
       <FlatList
         ref={flatListRef}
         data={facts}
@@ -109,10 +110,7 @@ export default function CategoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
+  root: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -125,7 +123,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: Layout.radius.full,
-    backgroundColor: Colors.surfaceSecondary,
   },
   headerCenter: {
     flex: 1,
@@ -134,12 +131,10 @@ const styles = StyleSheet.create({
   categoryLabel: {
     fontSize: 17,
     fontWeight: '700',
-    color: Colors.text,
     letterSpacing: -0.3,
   },
   factCount: {
     fontSize: 13,
-    color: Colors.textTertiary,
     marginTop: 2,
   },
   dots: {
@@ -158,16 +153,13 @@ const styles = StyleSheet.create({
   dotActive: {
     width: 20,
   },
-  pager: {
-    flex: 1,
-  },
+  pager: { flex: 1 },
   errorContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   errorText: {
-    color: Colors.textTertiary,
     fontSize: 16,
   },
 });

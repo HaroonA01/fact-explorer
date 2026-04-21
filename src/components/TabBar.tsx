@@ -2,15 +2,21 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import React, { useEffect } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../constants/colors';
+import { useTheme } from '../contexts/ThemeContext';
 import { Layout } from '../constants/layout';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const TAB_COUNT = 4;
+const TAB_WIDTH = SCREEN_WIDTH / TAB_COUNT;
+const PILL_WIDTH = 52;
+const PILL_HEIGHT = 34;
 
 type Tab = {
   name: string;
@@ -23,8 +29,12 @@ const TABS: Tab[] = [
   { name: 'index', label: 'Home', icon: 'home-outline', iconActive: 'home' },
   { name: 'explore', label: 'Explore', icon: 'compass-outline', iconActive: 'compass' },
   { name: 'saved', label: 'Saved', icon: 'bookmark-outline', iconActive: 'bookmark' },
-  { name: 'profile', label: 'Profile', icon: 'person-outline', iconActive: 'person' },
+  { name: 'profile', label: 'Settings', icon: 'settings-outline', iconActive: 'settings' },
 ];
+
+function pillX(index: number) {
+  return TAB_WIDTH * index + TAB_WIDTH / 2 - PILL_WIDTH / 2;
+}
 
 type Props = {
   state: { index: number; routes: { name: string; key: string }[] };
@@ -32,36 +42,27 @@ type Props = {
   navigation: any;
 };
 
-function TabItem({
+function TabItemInner({
   tab,
   isActive,
+  accent,
+  textTertiary,
   onPress,
 }: {
   tab: Tab;
   isActive: boolean;
+  accent: string;
+  textTertiary: string;
   onPress: () => void;
 }) {
   const scale = useSharedValue(1);
-  const indicatorOpacity = useSharedValue(isActive ? 1 : 0);
-  const indicatorWidth = useSharedValue(isActive ? 20 : 0);
-
-  useEffect(() => {
-    indicatorOpacity.value = withSpring(isActive ? 1 : 0, { damping: 20 });
-    indicatorWidth.value = withSpring(isActive ? 20 : 0, { damping: 18, stiffness: 200 });
-  }, [indicatorOpacity, indicatorWidth, isActive]);
-
-  const indicatorStyle = useAnimatedStyle(() => ({
-    opacity: indicatorOpacity.value,
-    width: indicatorWidth.value,
-  }));
 
   const scaleStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
   }));
 
   function handlePress() {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    scale.value = withSpring(0.88, { damping: 15, stiffness: 600 }, () => {
+    scale.value = withSpring(0.84, { damping: 15, stiffness: 600 }, () => {
       scale.value = withSpring(1, { damping: 12, stiffness: 300 });
     });
     onPress();
@@ -72,11 +73,18 @@ function TabItem({
       <Animated.View style={[styles.tabContent, scaleStyle]}>
         <Ionicons
           name={isActive ? tab.iconActive : tab.icon}
-          size={24}
-          color={isActive ? Colors.accent : Colors.textTertiary}
+          size={23}
+          color={isActive ? accent : textTertiary}
         />
-        <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{tab.label}</Text>
-        <Animated.View style={[styles.indicator, indicatorStyle]} />
+        <Text
+          style={[
+            styles.tabLabel,
+            { color: isActive ? accent : textTertiary },
+            isActive && styles.tabLabelActive,
+          ]}
+        >
+          {tab.label}
+        </Text>
       </Animated.View>
     </Pressable>
   );
@@ -84,22 +92,57 @@ function TabItem({
 
 export function TabBar({ state, navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const { colors, isDark } = useTheme();
+  const animatedPillX = useSharedValue(pillX(state.index));
+
+  useEffect(() => {
+    animatedPillX.value = withSpring(pillX(state.index), {
+      damping: 22,
+      stiffness: 280,
+    });
+  }, [state.index, animatedPillX]);
+
+  const pillStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: animatedPillX.value }],
+  }));
 
   return (
     <View style={[styles.wrapper, { paddingBottom: insets.bottom }]}>
-      <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
-      <View style={[styles.overlay, StyleSheet.absoluteFill]} />
-      <View style={styles.border} />
+      <BlurView
+        intensity={90}
+        tint={isDark ? 'dark' : 'extraLight'}
+        style={StyleSheet.absoluteFill}
+      />
+      <View
+        style={[
+          StyleSheet.absoluteFill,
+          {
+            backgroundColor: isDark
+              ? 'rgba(13,13,15,0.55)'
+              : 'rgba(245,245,247,0.55)',
+          },
+        ]}
+      />
       <View style={styles.tabs}>
+        <Animated.View
+          style={[
+            styles.pill,
+            { backgroundColor: colors.accent + '28' },
+            pillStyle,
+          ]}
+        />
         {TABS.map((tab, i) => {
           const route = state.routes[i];
           const isActive = state.index === i;
           return (
-            <TabItem
+            <TabItemInner
               key={tab.name}
               tab={tab}
               isActive={isActive}
+              accent={colors.accent}
+              textTertiary={colors.textTertiary}
               onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 const event = navigation.emit({
                   type: 'tabPress',
                   target: route?.name,
@@ -125,21 +168,25 @@ const styles = StyleSheet.create({
     right: 0,
     overflow: 'hidden',
   },
-  overlay: {
-    backgroundColor: 'rgba(245,245,247,0.85)',
-  },
-  border: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(60,60,67,0.18)',
-  },
   tabs: {
     flexDirection: 'row',
     paddingTop: Layout.spacing.sm,
     paddingBottom: Layout.spacing.sm,
+    position: 'relative',
+  },
+  pill: {
+    position: 'absolute',
+    top: 4,
+    left: 0,
+    width: PILL_WIDTH,
+    height: PILL_HEIGHT,
+    borderRadius: Layout.radius.lg,
+    zIndex: 0,
   },
   tabItem: {
     flex: 1,
     alignItems: 'center',
+    zIndex: 1,
   },
   tabContent: {
     alignItems: 'center',
@@ -148,16 +195,9 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: 10,
     fontWeight: '500',
-    color: Colors.textTertiary,
     letterSpacing: 0.2,
   },
   tabLabelActive: {
-    color: Colors.accent,
     fontWeight: '600',
-  },
-  indicator: {
-    height: 3,
-    borderRadius: Layout.radius.full,
-    backgroundColor: Colors.accent,
   },
 });

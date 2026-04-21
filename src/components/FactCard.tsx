@@ -7,7 +7,7 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
-import { Colors } from '../constants/colors';
+import { useTheme } from '../contexts/ThemeContext';
 import { Layout } from '../constants/layout';
 import { Fact } from '../data/facts';
 import { useSavedFacts } from '../hooks/useSavedFacts';
@@ -21,6 +21,7 @@ type Props = {
 };
 
 export function FactCard({ fact, visible = true }: Props) {
+  const { colors } = useTheme();
   const { isSaved, toggle } = useSavedFacts();
   const saved = isSaved(fact.id);
   const translateY = useSharedValue(visible ? 0 : 60);
@@ -51,30 +52,30 @@ export function FactCard({ fact, visible = true }: Props) {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Image
         source={{ uri: `https://picsum.photos/seed/${fact.imageId}/800/600` }}
-        style={styles.image}
+        style={[styles.image, { backgroundColor: colors.surfaceSecondary }]}
         resizeMode="cover"
       />
-      <Animated.View style={[styles.panel, animStyle]}>
-        <View style={styles.handle} />
-        <Text style={styles.title}>{fact.title}</Text>
-        <Text style={styles.body}>{fact.body}</Text>
-        <View style={styles.actions}>
-          <Pressable onPress={handleBookmark} style={styles.actionButton}>
+      <Animated.View style={[styles.panel, { backgroundColor: colors.surface }, animStyle]}>
+        <View style={[styles.handle, { backgroundColor: colors.separator }]} />
+        <Text style={[styles.title, { color: colors.text }]}>{fact.title}</Text>
+        <Text style={[styles.body, { color: colors.textSecondary }]}>{fact.body}</Text>
+        <View style={[styles.actions, { borderTopColor: colors.separator }]}>
+          <Pressable onPress={handleBookmark} style={[styles.actionButton, { backgroundColor: colors.surfaceSecondary }]}>
             <Ionicons
               name={saved ? 'bookmark' : 'bookmark-outline'}
               size={22}
-              color={saved ? Colors.accent : Colors.textTertiary}
+              color={saved ? colors.accent : colors.textTertiary}
             />
-            <Text style={[styles.actionLabel, saved && { color: Colors.accent }]}>
+            <Text style={[styles.actionLabel, { color: colors.textTertiary }, saved && { color: colors.accent }]}>
               {saved ? 'Saved' : 'Save'}
             </Text>
           </Pressable>
-          <Pressable onPress={handleShare} style={styles.actionButton}>
-            <Ionicons name="share-outline" size={22} color={Colors.textTertiary} />
-            <Text style={styles.actionLabel}>Share</Text>
+          <Pressable onPress={handleShare} style={[styles.actionButton, { backgroundColor: colors.surfaceSecondary }]}>
+            <Ionicons name="share-outline" size={22} color={colors.textTertiary} />
+            <Text style={[styles.actionLabel, { color: colors.textTertiary }]}>Share</Text>
           </Pressable>
         </View>
       </Animated.View>
@@ -85,28 +86,28 @@ export function FactCard({ fact, visible = true }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   image: {
     width: '100%',
     height: IMAGE_HEIGHT,
-    backgroundColor: Colors.surfaceSecondary,
   },
   panel: {
     flex: 1,
-    backgroundColor: Colors.surface,
     borderTopLeftRadius: Layout.radius.xl,
     borderTopRightRadius: Layout.radius.xl,
     marginTop: -Layout.radius.xl,
     paddingHorizontal: Layout.spacing.lg,
     paddingTop: Layout.spacing.md,
     paddingBottom: Layout.spacing.xl,
-    ...Layout.shadow.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 6,
   },
   handle: {
     width: 36,
     height: 4,
-    backgroundColor: Colors.separator,
     borderRadius: Layout.radius.full,
     alignSelf: 'center',
     marginBottom: Layout.spacing.lg,
@@ -114,7 +115,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: '700',
-    color: Colors.text,
     letterSpacing: -0.5,
     lineHeight: 28,
     marginBottom: Layout.spacing.md,
@@ -122,7 +122,6 @@ const styles = StyleSheet.create({
   body: {
     fontSize: 16,
     lineHeight: 24,
-    color: Colors.textSecondary,
     letterSpacing: -0.1,
     flex: 1,
   },
@@ -132,7 +131,6 @@ const styles = StyleSheet.create({
     marginTop: Layout.spacing.lg,
     paddingTop: Layout.spacing.md,
     borderTopWidth: 1,
-    borderTopColor: Colors.separator,
   },
   actionButton: {
     flexDirection: 'row',
@@ -141,11 +139,9 @@ const styles = StyleSheet.create({
     paddingVertical: Layout.spacing.sm,
     paddingHorizontal: Layout.spacing.md,
     borderRadius: Layout.radius.full,
-    backgroundColor: Colors.surfaceSecondary,
   },
   actionLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: Colors.textTertiary,
   },
 });

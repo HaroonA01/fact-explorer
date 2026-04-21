@@ -9,7 +9,7 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
-import { Colors } from '../constants/colors';
+import { useTheme } from '../contexts/ThemeContext';
 import { Layout } from '../constants/layout';
 import { Category } from '../data/categories';
 import { FACTS } from '../data/facts';
@@ -21,6 +21,7 @@ type Props = {
 };
 
 export function CategoryCard({ category, index: _index }: Props) {
+  const { colors } = useTheme();
   const scale = useSharedValue(1);
   const factCount = FACTS.filter((f) => f.categoryId === category.id).length;
 
@@ -56,10 +57,12 @@ export function CategoryCard({ category, index: _index }: Props) {
               />
             </LinearGradient>
             <View style={styles.textContainer}>
-              <Text style={styles.name}>{category.name}</Text>
-              <Text style={styles.description}>{factCount} facts</Text>
+              <Text style={[styles.name, { color: colors.text }]}>{category.name}</Text>
+              <Text style={[styles.description, { color: colors.textTertiary }]}>
+                {factCount} facts
+              </Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
+            <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
           </View>
         </GlassCard>
       </Pressable>
@@ -92,12 +95,10 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 16,
     fontWeight: '600',
-    color: Colors.text,
     letterSpacing: -0.2,
   },
   description: {
     fontSize: 13,
-    color: Colors.textTertiary,
     marginTop: 2,
   },
 });

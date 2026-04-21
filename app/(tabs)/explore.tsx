@@ -3,7 +3,7 @@ import React from 'react';
 import { SectionList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CompactFactCard } from '../../src/components/CompactFactCard';
-import { Colors } from '../../src/constants/colors';
+import { useTheme } from '../../src/contexts/ThemeContext';
 import { Layout } from '../../src/constants/layout';
 import { CATEGORIES } from '../../src/data/categories';
 import { FACTS } from '../../src/data/facts';
@@ -15,9 +15,10 @@ const sections = CATEGORIES.map((cat) => ({
 
 export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
       <SectionList
         sections={sections}
         keyExtractor={(item) => item.id}
@@ -25,8 +26,10 @@ export default function ExploreScreen() {
         stickySectionHeadersEnabled={false}
         ListHeaderComponent={
           <View style={[styles.header, { paddingTop: insets.top + Layout.spacing.md }]}>
-            <Text style={styles.title}>Explore</Text>
-            <Text style={styles.subtitle}>{FACTS.length} facts across {CATEGORIES.length} categories</Text>
+            <Text style={[styles.title, { color: colors.text }]}>Explore</Text>
+            <Text style={[styles.subtitle, { color: colors.textTertiary }]}>
+              {FACTS.length} facts across {CATEGORIES.length} categories
+            </Text>
           </View>
         }
         renderSectionHeader={({ section: { category } }) => (
@@ -37,7 +40,9 @@ export default function ExploreScreen() {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             />
-            <Text style={styles.sectionTitle}>{category.name}</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+              {category.name}
+            </Text>
           </View>
         )}
         renderItem={({ item }) => <CompactFactCard fact={item} />}
@@ -51,7 +56,6 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   header: {
     paddingHorizontal: Layout.spacing.lg,
@@ -60,12 +64,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 34,
     fontWeight: '800',
-    color: Colors.text,
     letterSpacing: -1,
   },
   subtitle: {
     fontSize: 15,
-    color: Colors.textTertiary,
     marginTop: Layout.spacing.xs,
   },
   sectionHeader: {
@@ -84,7 +86,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: Colors.textSecondary,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
