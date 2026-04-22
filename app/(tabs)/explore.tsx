@@ -13,12 +13,17 @@ const sections = CATEGORIES.map((cat) => ({
   data: FACTS.filter((f) => f.categoryId === cat.id),
 }));
 
+// Pre-compute flat global index for stagger animations
+const flatIndexMap = new Map<string, number>();
+let _idx = 0;
+sections.forEach((s) => s.data.forEach((f) => { flatIndexMap.set(f.id, _idx++); }));
+
 export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
-  const { colors } = useTheme();
+  const { colors, heroGradient } = useTheme();
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
+    <LinearGradient colors={heroGradient} style={styles.root}>
       <SectionList
         sections={sections}
         keyExtractor={(item) => item.id}
@@ -27,7 +32,7 @@ export default function ExploreScreen() {
         ListHeaderComponent={
           <View style={[styles.header, { paddingTop: insets.top + Layout.spacing.md }]}>
             <Text style={[styles.title, { color: colors.text }]}>Explore</Text>
-            <Text style={[styles.subtitle, { color: colors.textTertiary }]}>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
               {FACTS.length} facts across {CATEGORIES.length} categories
             </Text>
           </View>
@@ -36,27 +41,26 @@ export default function ExploreScreen() {
           <View style={styles.sectionHeader}>
             <LinearGradient
               colors={category.gradient}
-              style={styles.sectionDot}
+              style={styles.sectionPill}
               start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            />
-            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-              {category.name}
-            </Text>
+              end={{ x: 1, y: 0 }}
+            >
+              <Text style={styles.sectionPillText}>{category.name.toUpperCase()}</Text>
+            </LinearGradient>
           </View>
         )}
-        renderItem={({ item }) => <CompactFactCard fact={item} />}
+        renderItem={({ item }) => (
+          <CompactFactCard fact={item} animIndex={flatIndexMap.get(item.id) ?? 0} />
+        )}
         ItemSeparatorComponent={() => <View style={{ height: 4 }} />}
         SectionSeparatorComponent={() => <View style={{ height: 8 }} />}
       />
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
+  root: { flex: 1 },
   header: {
     paddingHorizontal: Layout.spacing.lg,
     paddingBottom: Layout.spacing.lg,
@@ -71,22 +75,20 @@ const styles = StyleSheet.create({
     marginTop: Layout.spacing.xs,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: Layout.spacing.lg,
     paddingTop: Layout.spacing.lg,
     paddingBottom: Layout.spacing.sm,
-    gap: Layout.spacing.sm,
   },
-  sectionDot: {
-    width: 12,
-    height: 12,
+  sectionPill: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
     borderRadius: Layout.radius.full,
   },
-  sectionTitle: {
-    fontSize: 13,
+  sectionPillText: {
+    color: '#FFFFFF',
+    fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.8,
-    textTransform: 'uppercase',
   },
 });

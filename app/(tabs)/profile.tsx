@@ -10,6 +10,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemePreference, useTheme } from '../../src/contexts/ThemeContext';
 import { AccentScheme, SCHEMES } from '../../src/data/schemes';
@@ -42,6 +49,22 @@ function formatTime(ms: number): string {
   const mins = totalMin % 60;
   if (hours === 0) return `${mins}m`;
   return `${hours}h ${mins}m`;
+}
+
+function useStatCardAnim(delayMs: number) {
+  const opacity = useSharedValue(0);
+  const translateY = useSharedValue(18);
+
+  useEffect(() => {
+    opacity.value = withDelay(delayMs, withTiming(1, { duration: 350 }));
+    translateY.value = withDelay(delayMs, withSpring(0, { damping: 20, stiffness: 220 }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: translateY.value }],
+  }));
 }
 
 type RowProps = {
@@ -119,7 +142,7 @@ function SectionBlock({
 }) {
   return (
     <View style={styles.section}>
-      <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>{title}</Text>
+      <Text style={[styles.sectionTitle, { color: 'rgba(255,255,255,0.55)' }]}>{title}</Text>
       <View style={[styles.sectionCard, { backgroundColor: colors.surface }]}>{children}</View>
     </View>
   );
@@ -141,7 +164,6 @@ function SchemeCircle({ scheme, selected }: { scheme: AccentScheme; selected: bo
         justifyContent: 'center',
       }}
     >
-      {/* Rotate -45deg so the vertical split becomes a top-left→bottom-right diagonal */}
       <View
         style={{
           width: CIRCLE_SIZE,
@@ -152,14 +174,12 @@ function SchemeCircle({ scheme, selected }: { scheme: AccentScheme; selected: bo
         }}
       >
         <View style={{ flexDirection: 'row', flex: 1 }}>
-          {/* Light half */}
           <LinearGradient
             colors={scheme.light.heroGradient}
             style={{ flex: 1 }}
             start={{ x: 0.5, y: 0 }}
             end={{ x: 0.5, y: 1 }}
           />
-          {/* Dark half */}
           <LinearGradient
             colors={scheme.dark.heroGradient}
             style={{ flex: 1 }}
@@ -185,7 +205,7 @@ const APPEARANCE_OPTIONS: {
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const { colors, preference, setPreference, accentSchemeId, setAccentSchemeId } = useTheme();
+  const { colors, heroGradient, preference, setPreference, accentSchemeId, setAccentSchemeId } = useTheme();
   const { streak, totalTimeMs } = useStats();
   const { savedIds } = useSavedFacts();
   const [notifications, setNotifications] = useState(false);
@@ -194,138 +214,166 @@ export default function SettingsScreen() {
   const animStreak = useCountUp(streak);
   const animLikes = useCountUp(savedIds.size);
 
+  const card1Anim = useStatCardAnim(0);
+  const card2Anim = useStatCardAnim(80);
+  const card3Anim = useStatCardAnim(160);
+
   return (
-    <ScrollView
-      style={[styles.root, { backgroundColor: colors.background }]}
-      contentContainerStyle={{
-        paddingTop: insets.top + Layout.spacing.md,
-        paddingBottom: insets.bottom + 90,
-      }}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
-      </View>
+    <LinearGradient colors={heroGradient} style={styles.root}>
+      <ScrollView
+        contentContainerStyle={{
+          paddingTop: insets.top + Layout.spacing.md,
+          paddingBottom: insets.bottom + 90,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
+        </View>
 
-      {/* Stats */}
-      <View style={styles.statsRow}>
-        <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
-          <Text style={styles.statEmoji}>🔥</Text>
-          <Text style={[styles.statValue, { color: colors.text }]}>{animStreak}</Text>
-          <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Day streak</Text>
-        </View>
-        <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
-          <Text style={styles.statEmoji}>⏱</Text>
-          <Text style={[styles.statValue, { color: colors.text }]}>
-            {formatTime(totalTimeMs)}
-          </Text>
-          <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Time spent</Text>
-        </View>
-        <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
-          <Text style={styles.statEmoji}>❤️</Text>
-          <Text style={[styles.statValue, { color: colors.text }]}>{animLikes}</Text>
-          <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Likes</Text>
-        </View>
-      </View>
+        {/* Stats */}
+        <View style={styles.statsRow}>
+          <Animated.View style={[styles.statCardWrapper, card1Anim]}>
+            <LinearGradient
+              colors={[colors.accent + '40', colors.accent + '15']}
+              style={[styles.statCard, { borderColor: colors.accent + '30' }]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Text style={styles.statEmoji}>🔥</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{animStreak}</Text>
+              <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Day streak</Text>
+            </LinearGradient>
+          </Animated.View>
 
-      {/* Mode */}
-      <SectionBlock title="Mode" colors={colors}>
-        {APPEARANCE_OPTIONS.map((opt, i) => (
+          <Animated.View style={[styles.statCardWrapper, card2Anim]}>
+            <LinearGradient
+              colors={[colors.accent + '40', colors.accent + '15']}
+              style={[styles.statCard, { borderColor: colors.accent + '30' }]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Text style={styles.statEmoji}>⏱</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>
+                {formatTime(totalTimeMs)}
+              </Text>
+              <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Time spent</Text>
+            </LinearGradient>
+          </Animated.View>
+
+          <Animated.View style={[styles.statCardWrapper, card3Anim]}>
+            <LinearGradient
+              colors={[colors.accent + '40', colors.accent + '15']}
+              style={[styles.statCard, { borderColor: colors.accent + '30' }]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Text style={styles.statEmoji}>❤️</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{animLikes}</Text>
+              <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Likes</Text>
+            </LinearGradient>
+          </Animated.View>
+        </View>
+
+        {/* Mode */}
+        <SectionBlock title="Mode" colors={colors}>
+          {APPEARANCE_OPTIONS.map((opt, i) => (
+            <Row
+              key={opt.value}
+              icon={opt.icon}
+              iconColor={opt.color}
+              label={opt.label}
+              rightIcon={preference === opt.value ? 'checkmark-circle' : undefined}
+              onPress={() => setPreference(opt.value)}
+              last={i === APPEARANCE_OPTIONS.length - 1}
+              colors={colors}
+            />
+          ))}
+        </SectionBlock>
+
+        {/* Theme */}
+        <SectionBlock title="Theme" colors={colors}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.schemeScroll}
+          >
+            {SCHEMES.map((scheme) => {
+              const isSelected = accentSchemeId === scheme.id;
+              return (
+                <Pressable
+                  key={scheme.id}
+                  onPress={() => setAccentSchemeId(scheme.id)}
+                  style={styles.schemeItem}
+                >
+                  <SchemeCircle scheme={scheme} selected={isSelected} />
+                  <Text
+                    style={[
+                      styles.schemeName,
+                      {
+                        color: isSelected ? colors.accent : colors.textTertiary,
+                        fontWeight: isSelected ? '600' : '400',
+                      },
+                    ]}
+                  >
+                    {scheme.name}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </SectionBlock>
+
+        {/* Preferences */}
+        <SectionBlock title="Preferences" colors={colors}>
           <Row
-            key={opt.value}
-            icon={opt.icon}
-            iconColor={opt.color}
-            label={opt.label}
-            rightIcon={preference === opt.value ? 'checkmark-circle' : undefined}
-            onPress={() => setPreference(opt.value)}
-            last={i === APPEARANCE_OPTIONS.length - 1}
+            icon="notifications-outline"
+            iconColor="#FF9500"
+            label="Daily notifications"
+            toggle
+            toggleValue={notifications}
+            onToggle={setNotifications}
             colors={colors}
           />
-        ))}
-      </SectionBlock>
+          <Row
+            icon="phone-portrait-outline"
+            iconColor={colors.accent}
+            label="Haptic feedback"
+            toggle
+            toggleValue={haptics}
+            onToggle={setHaptics}
+            last
+            colors={colors}
+          />
+        </SectionBlock>
 
-      {/* Theme */}
-      <SectionBlock title="Theme" colors={colors}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.schemeScroll}
-        >
-          {SCHEMES.map((scheme) => {
-            const isSelected = accentSchemeId === scheme.id;
-            return (
-              <Pressable
-                key={scheme.id}
-                onPress={() => setAccentSchemeId(scheme.id)}
-                style={styles.schemeItem}
-              >
-                <SchemeCircle scheme={scheme} selected={isSelected} />
-                <Text
-                  style={[
-                    styles.schemeName,
-                    {
-                      color: isSelected ? colors.accent : colors.textTertiary,
-                      fontWeight: isSelected ? '600' : '400',
-                    },
-                  ]}
-                >
-                  {scheme.name}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      </SectionBlock>
-
-      {/* Preferences */}
-      <SectionBlock title="Preferences" colors={colors}>
-        <Row
-          icon="notifications-outline"
-          iconColor="#FF9500"
-          label="Daily notifications"
-          toggle
-          toggleValue={notifications}
-          onToggle={setNotifications}
-          colors={colors}
-        />
-        <Row
-          icon="phone-portrait-outline"
-          iconColor={colors.accent}
-          label="Haptic feedback"
-          toggle
-          toggleValue={haptics}
-          onToggle={setHaptics}
-          last
-          colors={colors}
-        />
-      </SectionBlock>
-
-      {/* About */}
-      <SectionBlock title="About" colors={colors}>
-        <Row
-          icon="information-circle-outline"
-          iconColor={colors.accent}
-          label="Version"
-          value="1.0.0"
-          colors={colors}
-        />
-        <Row
-          icon="star-outline"
-          iconColor="#FF9500"
-          label="Rate Fact Explorer"
-          onPress={() => {}}
-          colors={colors}
-        />
-        <Row
-          icon="shield-checkmark-outline"
-          iconColor="#34C759"
-          label="Privacy Policy"
-          onPress={() => {}}
-          last
-          colors={colors}
-        />
-      </SectionBlock>
-    </ScrollView>
+        {/* About */}
+        <SectionBlock title="About" colors={colors}>
+          <Row
+            icon="information-circle-outline"
+            iconColor={colors.accent}
+            label="Version"
+            value="1.0.0"
+            colors={colors}
+          />
+          <Row
+            icon="star-outline"
+            iconColor="#FF9500"
+            label="Rate Fact Explorer"
+            onPress={() => {}}
+            colors={colors}
+          />
+          <Row
+            icon="shield-checkmark-outline"
+            iconColor="#34C759"
+            label="Privacy Policy"
+            onPress={() => {}}
+            last
+            colors={colors}
+          />
+        </SectionBlock>
+      </ScrollView>
+    </LinearGradient>
   );
 }
 
@@ -346,17 +394,20 @@ const styles = StyleSheet.create({
     gap: Layout.spacing.sm,
     marginBottom: Layout.spacing.lg,
   },
-  statCard: {
+  statCardWrapper: {
     flex: 1,
+  },
+  statCard: {
     borderRadius: Layout.radius.lg,
     padding: Layout.spacing.md,
     alignItems: 'center',
     gap: 2,
+    borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.12,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 4,
   },
   statEmoji: {
     fontSize: 20,
@@ -389,9 +440,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
   },
   row: {
     flexDirection: 'row',

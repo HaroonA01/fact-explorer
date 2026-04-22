@@ -13,7 +13,7 @@ import { useSavedFacts } from '../../src/hooks/useSavedFacts';
 export default function SavedScreen() {
   const insets = useSafeAreaInsets();
   const { savedIds, loaded } = useSavedFacts();
-  const { colors } = useTheme();
+  const { colors, heroGradient } = useTheme();
 
   const savedFacts = FACTS.filter((f) => savedIds.has(f.id));
 
@@ -22,10 +22,15 @@ export default function SavedScreen() {
     data: savedFacts.filter((f) => f.categoryId === cat.id),
   })).filter((s) => s.data.length > 0);
 
+  // Pre-compute flat index for stagger (recomputed per render as savedFacts changes)
+  const flatIndexMap = new Map<string, number>();
+  let idx = 0;
+  sections.forEach((s) => s.data.forEach((f) => { flatIndexMap.set(f.id, idx++); }));
+
   const totalCount = savedFacts.length;
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
+    <LinearGradient colors={heroGradient} style={styles.root}>
       <SectionList
         sections={sections}
         keyExtractor={(item) => item.id}
@@ -37,7 +42,7 @@ export default function SavedScreen() {
           <View style={styles.header}>
             <Text style={[styles.title, { color: colors.text }]}>Saved</Text>
             {loaded && totalCount > 0 && (
-              <Text style={[styles.subtitle, { color: colors.textTertiary }]}>
+              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
                 {totalCount} fact{totalCount !== 1 ? 's' : ''} saved
               </Text>
             )}
@@ -47,38 +52,37 @@ export default function SavedScreen() {
           <View style={styles.sectionHeader}>
             <LinearGradient
               colors={category.gradient}
-              style={styles.sectionDot}
+              style={styles.sectionPill}
               start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            />
-            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-              {category.name}
-            </Text>
-            <View style={[styles.badge, { backgroundColor: colors.surfaceSecondary }]}>
-              <Text style={[styles.badgeText, { color: colors.textTertiary }]}>
-                {data.length}
-              </Text>
+              end={{ x: 1, y: 0 }}
+            >
+              <Text style={styles.sectionPillText}>{category.name.toUpperCase()}</Text>
+            </LinearGradient>
+            <View style={[styles.badge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+              <Text style={styles.badgeText}>{data.length}</Text>
             </View>
           </View>
         )}
-        renderItem={({ item }) => <CompactFactCard fact={item} />}
+        renderItem={({ item }) => (
+          <CompactFactCard fact={item} animIndex={flatIndexMap.get(item.id) ?? 0} />
+        )}
         ItemSeparatorComponent={() => <View style={{ height: 4 }} />}
         SectionSeparatorComponent={() => <View style={{ height: 4 }} />}
         ListEmptyComponent={
           loaded ? (
             <View style={styles.empty}>
-              <View style={[styles.emptyIcon, { backgroundColor: colors.surfaceSecondary }]}>
-                <Ionicons name="bookmark-outline" size={36} color={colors.textTertiary} />
+              <View style={[styles.emptyIcon, { backgroundColor: 'rgba(255,255,255,0.12)' }]}>
+                <Ionicons name="bookmark-outline" size={36} color="rgba(255,255,255,0.7)" />
               </View>
               <Text style={[styles.emptyTitle, { color: colors.text }]}>Nothing saved yet</Text>
-              <Text style={[styles.emptySubtitle, { color: colors.textTertiary }]}>
+              <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
                 Tap the bookmark icon on any fact to save it here for later.
               </Text>
             </View>
           ) : null
         }
       />
-    </View>
+    </LinearGradient>
   );
 }
 
@@ -106,17 +110,16 @@ const styles = StyleSheet.create({
     paddingBottom: Layout.spacing.sm,
     gap: Layout.spacing.sm,
   },
-  sectionDot: {
-    width: 12,
-    height: 12,
+  sectionPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
     borderRadius: Layout.radius.full,
   },
-  sectionTitle: {
-    fontSize: 13,
+  sectionPillText: {
+    color: '#FFFFFF',
+    fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    flex: 1,
   },
   badge: {
     paddingHorizontal: 8,
@@ -126,6 +129,7 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 12,
     fontWeight: '600',
+    color: '#FFFFFF',
   },
   empty: {
     flex: 1,

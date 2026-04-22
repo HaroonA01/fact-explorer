@@ -14,48 +14,84 @@ import {
 } from 'react-native';
 import Animated, {
   Easing,
+  SharedValue,
   useAnimatedStyle,
   useSharedValue,
+  withSequence,
+  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { useTheme } from '../contexts/ThemeContext';
 import { Layout } from '../constants/layout';
+import { CATEGORIES } from '../data/categories';
 import { Fact } from '../data/facts';
 import { useSavedFacts } from '../hooks/useSavedFacts';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const IMAGE_HEIGHT = SCREEN_HEIGHT * 0.42;
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const IMAGE_HEIGHT = SCREEN_HEIGHT * 0.50;
+const PARALLAX_BUFFER = 50; // px each side beyond screen width
+const PARALLAX_FACTOR = 0.12;
 
 type Props = {
   fact: Fact;
   visible?: boolean;
+  scrollX: SharedValue<number>;
+  index: number;
 };
 
-export function FactCard({ fact, visible = true }: Props) {
-  const { colors } = useTheme();
+export function FactCard({ fact, visible = true, scrollX, index }: Props) {
+  const { colors, isDark } = useTheme();
   const { isSaved, toggle } = useSavedFacts();
   const saved = isSaved(fact.id);
   const scrollRef = useRef<ScrollView>(null);
+  const category = CATEGORIES.find((c) => c.id === fact.categoryId);
+  const categoryColor = category?.color ?? colors.accent;
 
-  const opacity = useSharedValue(0);
-  const mounted = useRef(false);
+  // Entry: scale + opacity spring on mount
+  const entryScale = useSharedValue(0.94);
+  const entryOpacity = useSharedValue(0);
+
+  // Content card spring when becoming visible
+  const contentY = useSharedValue(16);
+
+  // Bookmark burst scale
+  const saveScale = useSharedValue(1);
 
   useEffect(() => {
-    if (!mounted.current) {
-      mounted.current = true;
-      opacity.value = withTiming(1, { duration: 350, easing: Easing.out(Easing.quad) });
-    }
+    entryScale.value = withSpring(1, { damping: 18, stiffness: 180 });
+    entryOpacity.value = withTiming(1, { duration: 380, easing: Easing.out(Easing.quad) });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (!visible) {
       scrollRef.current?.scrollTo({ y: 0, animated: false });
+      contentY.value = 16;
+    } else {
+      contentY.value = withSpring(0, { damping: 20, stiffness: 220 });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   const containerStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
+    opacity: entryOpacity.value,
+    transform: [{ scale: entryScale.value }],
+  }));
+
+  // Parallax: image moves at PARALLAX_FACTOR speed relative to card scroll
+  const imageWrapperStyle = useAnimatedStyle(() => {
+    const offset = (scrollX.value - index * SCREEN_WIDTH) * PARALLAX_FACTOR;
+    return {
+      transform: [{ translateX: -offset }],
+    };
+  });
+
+  const contentCardStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: contentY.value }],
+  }));
+
+  const saveIconStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: saveScale.value }],
   }));
 
   async function handleShare() {
@@ -66,12 +102,21 @@ export function FactCard({ fact, visible = true }: Props) {
   }
 
   function handleBookmark() {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     toggle(fact.id);
+    saveScale.value = withSequence(
+      withSpring(1.35, { damping: 6, stiffness: 300 }),
+      withSpring(0.88, { damping: 8, stiffness: 280 }),
+      withSpring(1.0, { damping: 12, stiffness: 260 }),
+    );
   }
 
+  const cardBg = isDark
+    ? 'rgba(13,13,15,0.93)'
+    : 'rgba(252,252,255,0.94)';
+
   return (
-    <Animated.View style={[styles.container, { backgroundColor: colors.background }, containerStyle]}>
+    <Animated.View style={[styles.container, containerStyle]}>
       <ScrollView
         ref={scrollRef}
         style={styles.scroll}
@@ -79,53 +124,65 @@ export function FactCard({ fact, visible = true }: Props) {
         bounces={false}
         showsVerticalScrollIndicator={false}
       >
-        {/* Image header with dark gradient overlay */}
+        {/* Image with parallax */}
         <View style={styles.imageContainer}>
-          <Image
-            source={{ uri: `https://picsum.photos/seed/${fact.imageId}/800/600` }}
-            style={[styles.image, { backgroundColor: colors.surfaceSecondary }]}
-            resizeMode="cover"
-          />
+          <Animated.View style={[styles.imageWrapper, imageWrapperStyle]}>
+            <Image
+              source={{ uri: `https://picsum.photos/seed/${fact.imageId}/800/600` }}
+              style={styles.image}
+              resizeMode="cover"
+            />
+          </Animated.View>
           <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.55)']}
+            colors={['transparent', 'rgba(0,0,0,0.28)', 'rgba(0,0,0,0.68)']}
             style={styles.imageOverlay}
           />
         </View>
 
         {/* Content card */}
-        <View style={[styles.contentCard, { backgroundColor: colors.surface }]}>
+        <Animated.View style={[styles.contentCard, { backgroundColor: cardBg }, contentCardStyle]}>
+          {/* Category badge */}
+          <View style={[styles.badge, { backgroundColor: categoryColor + '22' }]}>
+            <Text style={[styles.badgeText, { color: categoryColor }]}>
+              {(category?.name ?? '').toUpperCase()}
+            </Text>
+          </View>
+
           <Text style={[styles.title, { color: colors.text }]}>{fact.title}</Text>
           <Text style={[styles.body, { color: colors.textSecondary }]}>{fact.body}</Text>
 
           <View style={[styles.actions, { borderTopColor: colors.separator }]}>
+            {/* Save button with burst animation */}
             <Pressable
               onPress={handleBookmark}
-              style={[styles.actionButton, { backgroundColor: colors.surfaceSecondary }]}
+              style={[styles.actionButton, { backgroundColor: categoryColor + '18' }]}
             >
-              <Ionicons
-                name={saved ? 'bookmark' : 'bookmark-outline'}
-                size={20}
-                color={saved ? colors.accent : colors.textTertiary}
-              />
+              <Animated.View style={saveIconStyle}>
+                <Ionicons
+                  name={saved ? 'bookmark' : 'bookmark-outline'}
+                  size={20}
+                  color={saved ? categoryColor : colors.textTertiary}
+                />
+              </Animated.View>
               <Text
                 style={[
                   styles.actionLabel,
-                  { color: colors.textTertiary },
-                  saved && { color: colors.accent },
+                  { color: saved ? categoryColor : colors.textTertiary },
                 ]}
               >
                 {saved ? 'Saved' : 'Save'}
               </Text>
             </Pressable>
+
             <Pressable
               onPress={handleShare}
-              style={[styles.actionButton, { backgroundColor: colors.surfaceSecondary }]}
+              style={[styles.actionButton, { backgroundColor: categoryColor + '18' }]}
             >
               <Ionicons name="share-outline" size={20} color={colors.textTertiary} />
               <Text style={[styles.actionLabel, { color: colors.textTertiary }]}>Share</Text>
             </Pressable>
           </View>
-        </View>
+        </Animated.View>
       </ScrollView>
     </Animated.View>
   );
@@ -143,20 +200,24 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     height: IMAGE_HEIGHT,
+    overflow: 'hidden',
   },
-  image: {
+  imageWrapper: {
     position: 'absolute',
     top: 0,
-    left: 0,
-    right: 0,
     bottom: 0,
+    left: -PARALLAX_BUFFER,
+    width: SCREEN_WIDTH + PARALLAX_BUFFER * 2,
+  },
+  image: {
+    flex: 1,
   },
   imageOverlay: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    height: IMAGE_HEIGHT * 0.5,
+    height: IMAGE_HEIGHT * 0.65,
   },
   contentCard: {
     borderTopLeftRadius: Layout.radius.xl,
@@ -168,9 +229,21 @@ const styles = StyleSheet.create({
     flex: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    elevation: 10,
+  },
+  badge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: Layout.radius.full,
+    marginBottom: Layout.spacing.sm,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
   },
   title: {
     fontSize: 24,
