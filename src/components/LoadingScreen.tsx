@@ -1,6 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect } from 'react';
 import { Dimensions, StyleSheet, Text, View } from 'react-native';
+import { useTheme } from '../contexts/ThemeContext';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -28,7 +29,8 @@ function Particle({
   size,
   delay,
   duration,
-}: (typeof PARTICLE_DATA)[0]) {
+  color,
+}: (typeof PARTICLE_DATA)[0] & { color: string }) {
   const ty = useSharedValue(0);
   const opa = useSharedValue(0);
 
@@ -66,7 +68,7 @@ function Particle({
           width: size,
           height: size,
           borderRadius: size / 2,
-          backgroundColor: '#7EB8FF',
+          backgroundColor: color,
         },
         style,
       ]}
@@ -79,11 +81,12 @@ type Props = {
 };
 
 export function LoadingScreen({ onFinish }: Props) {
+  const { heroGradient, particleColor } = useTheme();
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.92);
   const shimmerX = useSharedValue(-SCREEN_WIDTH);
   const containerOpacity = useSharedValue(1);
-  const containerTranslateY = useSharedValue(0);
+  const contentExitScale = useSharedValue(1);
   const glowRadius = useSharedValue(4);
   const ringScale = useSharedValue(0.8);
   const ringOpacity = useSharedValue(0.5);
@@ -130,16 +133,16 @@ export function LoadingScreen({ onFinish }: Props) {
       2200,
       withTiming(0, { duration: 500, easing: Easing.in(Easing.quad) }),
     );
-    containerTranslateY.value = withDelay(
+    contentExitScale.value = withDelay(
       2200,
-      withTiming(-30, { duration: 500, easing: Easing.in(Easing.quad) }),
+      withTiming(1.8, { duration: 500, easing: Easing.in(Easing.quad) }),
     );
 
     const timer = setTimeout(onFinish, 2700);
     return () => clearTimeout(timer);
   }, [
     containerOpacity,
-    containerTranslateY,
+    contentExitScale,
     glowRadius,
     onFinish,
     opacity,
@@ -151,12 +154,11 @@ export function LoadingScreen({ onFinish }: Props) {
 
   const contentStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
-    transform: [{ scale: scale.value }],
+    transform: [{ scale: scale.value * contentExitScale.value }],
   }));
 
   const containerStyle = useAnimatedStyle(() => ({
     opacity: containerOpacity.value,
-    transform: [{ translateY: containerTranslateY.value }],
   }));
 
   const shimmerStyle = useAnimatedStyle(() => ({
@@ -175,11 +177,11 @@ export function LoadingScreen({ onFinish }: Props) {
   return (
     <Animated.View style={[styles.container, containerStyle]}>
       <LinearGradient
-        colors={['#05050F', '#0A0A1A', '#1A1A2E']}
+        colors={heroGradient}
         style={StyleSheet.absoluteFill}
       />
       {PARTICLE_DATA.map((p) => (
-        <Particle key={p.id} {...p} />
+        <Particle key={p.id} {...p} color={particleColor} />
       ))}
       <Animated.View style={[styles.ring, ringStyle]} />
       <Animated.View style={[styles.content, contentStyle]}>

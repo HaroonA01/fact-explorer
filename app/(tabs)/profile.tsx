@@ -1,8 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemePreference, useTheme } from '../../src/contexts/ThemeContext';
+import { AccentScheme, SCHEMES } from '../../src/data/schemes';
 import { useStats } from '../../src/hooks/useStats';
 import { useSavedFacts } from '../../src/hooks/useSavedFacts';
 import { Layout } from '../../src/constants/layout';
@@ -115,6 +125,53 @@ function SectionBlock({
   );
 }
 
+const CIRCLE_SIZE = 62;
+
+function SchemeCircle({ scheme, selected }: { scheme: AccentScheme; selected: boolean }) {
+  const outerSize = CIRCLE_SIZE + 8;
+  return (
+    <View
+      style={{
+        width: outerSize,
+        height: outerSize,
+        borderRadius: outerSize / 2,
+        borderWidth: 2.5,
+        borderColor: selected ? scheme.dark.accent : 'transparent',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {/* Rotate -45deg so the vertical split becomes a top-left→bottom-right diagonal */}
+      <View
+        style={{
+          width: CIRCLE_SIZE,
+          height: CIRCLE_SIZE,
+          borderRadius: CIRCLE_SIZE / 2,
+          overflow: 'hidden',
+          transform: [{ rotate: '-45deg' }],
+        }}
+      >
+        <View style={{ flexDirection: 'row', flex: 1 }}>
+          {/* Light half */}
+          <LinearGradient
+            colors={scheme.light.heroGradient}
+            style={{ flex: 1 }}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+          />
+          {/* Dark half */}
+          <LinearGradient
+            colors={scheme.dark.heroGradient}
+            style={{ flex: 1 }}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+          />
+        </View>
+      </View>
+    </View>
+  );
+}
+
 const APPEARANCE_OPTIONS: {
   label: string;
   value: ThemePreference;
@@ -128,7 +185,7 @@ const APPEARANCE_OPTIONS: {
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const { colors, preference, setPreference } = useTheme();
+  const { colors, preference, setPreference, accentSchemeId, setAccentSchemeId } = useTheme();
   const { streak, totalTimeMs } = useStats();
   const { savedIds } = useSavedFacts();
   const [notifications, setNotifications] = useState(false);
@@ -153,26 +210,26 @@ export default function SettingsScreen() {
       {/* Stats */}
       <View style={styles.statsRow}>
         <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.statEmoji]}>🔥</Text>
+          <Text style={styles.statEmoji}>🔥</Text>
           <Text style={[styles.statValue, { color: colors.text }]}>{animStreak}</Text>
           <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Day streak</Text>
         </View>
         <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.statEmoji]}>⏱</Text>
+          <Text style={styles.statEmoji}>⏱</Text>
           <Text style={[styles.statValue, { color: colors.text }]}>
             {formatTime(totalTimeMs)}
           </Text>
           <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Time spent</Text>
         </View>
         <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.statEmoji]}>❤️</Text>
+          <Text style={styles.statEmoji}>❤️</Text>
           <Text style={[styles.statValue, { color: colors.text }]}>{animLikes}</Text>
           <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Likes</Text>
         </View>
       </View>
 
-      {/* Appearance */}
-      <SectionBlock title="Appearance" colors={colors}>
+      {/* Mode */}
+      <SectionBlock title="Mode" colors={colors}>
         {APPEARANCE_OPTIONS.map((opt, i) => (
           <Row
             key={opt.value}
@@ -185,6 +242,39 @@ export default function SettingsScreen() {
             colors={colors}
           />
         ))}
+      </SectionBlock>
+
+      {/* Theme */}
+      <SectionBlock title="Theme" colors={colors}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.schemeScroll}
+        >
+          {SCHEMES.map((scheme) => {
+            const isSelected = accentSchemeId === scheme.id;
+            return (
+              <Pressable
+                key={scheme.id}
+                onPress={() => setAccentSchemeId(scheme.id)}
+                style={styles.schemeItem}
+              >
+                <SchemeCircle scheme={scheme} selected={isSelected} />
+                <Text
+                  style={[
+                    styles.schemeName,
+                    {
+                      color: isSelected ? colors.accent : colors.textTertiary,
+                      fontWeight: isSelected ? '600' : '400',
+                    },
+                  ]}
+                >
+                  {scheme.name}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
       </SectionBlock>
 
       {/* Preferences */}
@@ -332,5 +422,21 @@ const styles = StyleSheet.create({
   },
   rowValue: {
     fontSize: 15,
+  },
+  schemeScroll: {
+    paddingHorizontal: Layout.spacing.md,
+    paddingVertical: Layout.spacing.md,
+    gap: Layout.spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  schemeItem: {
+    alignItems: 'center',
+    gap: Layout.spacing.xs,
+  },
+  schemeName: {
+    fontSize: 11,
+    letterSpacing: 0.2,
+    textAlign: 'center',
   },
 });
