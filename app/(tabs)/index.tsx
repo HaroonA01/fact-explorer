@@ -91,9 +91,12 @@ function Particle({
   );
 }
 
+const HEADER_SCALE = 17 / 56;
+const HERO_TEXT_HALF_H = 30; // lineHeight 60 / 2
+
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { colors, isDark } = useTheme();
+  const { colors, isDark, heroGradient, particleColor } = useTheme();
   const [showLoader, setShowLoader] = useState(true);
   const scrollY = useSharedValue(0);
 
@@ -101,22 +104,18 @@ export default function HomeScreen() {
   const titleOpacity = useSharedValue(0);
   const titleGlow = useSharedValue(4);
 
-  const heroGradient: [string, string, string] = isDark
-    ? ['#05050F', '#0A0A1A', '#1A1A2E']
-    : ['#E8F0FE', '#C7D8F8', '#A8C4F0'];
-
   const heroTextColor = isDark ? '#FFFFFF' : '#1A1A3E';
   const heroSubColor = isDark ? 'rgba(255,255,255,0.75)' : 'rgba(26,26,62,0.65)';
   const heroGreetColor = isDark ? 'rgba(255,255,255,0.65)' : 'rgba(26,26,62,0.55)';
-  const particleColor = isDark ? '#7EB8FF' : '#4A7FBF';
-  const rootBg = isDark ? '#1A1A2E' : '#A8C4F0';
+  const rootBg = heroGradient[2];
   const statusBarStyle = isDark ? 'light-content' : 'dark-content';
 
-  // Floating title Y: hero position → sticky top position
-  // Hero center ≈ insets.top + (SCREEN_HEIGHT - insets.top) * 0.42 (approx title top)
   const TITLE_START_Y = insets.top + (SCREEN_HEIGHT - insets.top) * 0.42;
-  const TITLE_END_Y = insets.top + 14;
+  // Account for scale transform around center: visual top = TITLE_END_Y + HERO_TEXT_HALF_H*(1-HEADER_SCALE)
+  const TITLE_END_Y = insets.top + 14 - HERO_TEXT_HALF_H * (1 - HEADER_SCALE);
   const SCROLL_RANGE = TITLE_START_Y - TITLE_END_Y;
+  // Greeting sits directly above the floating title; 52 = line-height(20) + marginBottom xl(32)
+  const greetingOffset = (SCREEN_HEIGHT - insets.top) * 0.42 - 52;
 
   function handleFinish() {
     setShowLoader(false);
@@ -136,28 +135,16 @@ export default function HomeScreen() {
     scrollY.value = event.contentOffset.y;
   });
 
-  // Floating title container: slides from hero Y → sticky header Y
-  const floatingContainerStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: interpolate(scrollY.value, [0, SCROLL_RANGE], [TITLE_START_Y, TITLE_END_Y], 'clamp') },
-    ],
-  }));
-
-  // Load animation (scale + opacity after loader finishes) — wraps hero-size title
-  const titleLoadWrapStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: titleScale.value }],
-    opacity: titleOpacity.value,
-  }));
-
-  // Hero title scrolls out in first half of SCROLL_RANGE
-  const heroTitleAlphaStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [0, SCROLL_RANGE * 0.5], [1, 0], 'clamp'),
-  }));
-
-  // Header title fades in during second half of SCROLL_RANGE
-  const headerAlphaStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [SCROLL_RANGE * 0.5, SCROLL_RANGE], [0, 1], 'clamp'),
-  }));
+  // Single title: shrinks + slides from hero center to sticky header position
+  const floatingContainerStyle = useAnimatedStyle(() => {
+    const scrollScaleFactor = interpolate(scrollY.value, [0, SCROLL_RANGE], [1, HEADER_SCALE], 'clamp');
+    const combinedScale = titleScale.value * scrollScaleFactor;
+    const ty = interpolate(scrollY.value, [0, SCROLL_RANGE], [TITLE_START_Y, TITLE_END_Y], 'clamp');
+    return {
+      transform: [{ translateY: ty }, { scale: combinedScale }],
+      opacity: titleOpacity.value,
+    };
+  });
 
   // Glow pulse on hero title text
   const titleGlowStyle = useAnimatedStyle(() => ({
@@ -177,20 +164,25 @@ export default function HomeScreen() {
     <View style={[styles.root, { backgroundColor: rootBg }]}>
       <StatusBar barStyle={statusBarStyle} />
 
-      {/* Single floating title — tracks from hero center to sticky header */}
+      {/* Fixed gradient background — always fills screen regardless of scroll */}
+      <LinearGradient colors={heroGradient} style={StyleSheet.absoluteFill} />
+
+      {/* Root-level particle layer — persists behind categories as you scroll */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        {PARTICLE_DATA.map((p) => (
+          <Particle key={`bg-${p.id}`} {...p} color={particleColor} />
+        ))}
+      </View>
+
+      {/* Single floating title — shrinks and slides from hero center to sticky header */}
       <Animated.View style={[styles.floatingTitle, floatingContainerStyle]} pointerEvents="none">
-        {/* Hero-size title: load anim + fades out on scroll */}
-        <Animated.View style={titleLoadWrapStyle}>
-          <Animated.View style={heroTitleAlphaStyle}>
-            <Animated.Text
-              style={[styles.floatingHeroText, { color: heroTextColor }, titleGlowStyle]}
-            >
-              FACT EXPLORER
-            </Animated.Text>
-          </Animated.View>
-        </Animated.View>
-        {/* Header-size title: fades in as it reaches top */}
-        <Animated.Text style={[styles.floatingHeaderText, { color: heroTextColor }, headerAlphaStyle]}>
+        <Animated.Text
+          style={[
+            styles.floatingHeroText,
+            { color: heroTextColor, textShadowColor: colors.accent + 'CC' },
+            titleGlowStyle,
+          ]}
+        >
           FACT EXPLORER
         </Animated.Text>
       </Animated.View>
@@ -199,22 +191,17 @@ export default function HomeScreen() {
         onScroll={scrollHandler}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
+        snapToOffsets={[SCREEN_HEIGHT * 0.8]}
+        decelerationRate="fast"
       >
-        {/* Hero */}
-        <LinearGradient
-          colors={heroGradient}
-          style={{ height: SCREEN_HEIGHT, paddingTop: insets.top, overflow: 'hidden' }}
-        >
-          {PARTICLE_DATA.map((p) => (
-            <Particle key={p.id} {...p} color={particleColor} />
-          ))}
-
-          {/* Greeting + subtitle — title removed, replaced by floating element above */}
-          <View style={styles.heroContent}>
+        {/* Hero area — transparent (gradient is fixed behind) */}
+        <View style={{ height: SCREEN_HEIGHT, paddingTop: insets.top }}>
+          {/* Greeting + subtitle */}
+          <View style={[styles.heroContent, { paddingTop: greetingOffset }]}>
             <Animated.View style={heroSupportStyle}>
               <Text style={[styles.greeting, { color: heroGreetColor }]}>{getGreeting()}</Text>
             </Animated.View>
-            {/* Spacer preserving space where the hero title sits (two lines at lineHeight 60) */}
+            {/* Spacer reserving layout space where the hero title sits */}
             <View style={styles.titleSpacer} />
             <Animated.View style={heroSupportStyle}>
               <Text style={[styles.heroSubtitle, { color: heroSubColor }]}>
@@ -226,9 +213,9 @@ export default function HomeScreen() {
           <Animated.View style={[styles.hintContainer, hintStyle]}>
             <SwipeUpHint color={isDark ? 'rgba(255,255,255,0.9)' : 'rgba(26,26,62,0.75)'} />
           </Animated.View>
-        </LinearGradient>
+        </View>
 
-        {/* Categories — transparent so gradient continues behind */}
+        {/* Categories — transparent so gradient + particles show behind */}
         <View style={styles.categoriesSection}>
           <Text style={[styles.categoriesTitle, { color: heroTextColor }]}>Categories</Text>
           {CATEGORIES.map((cat, i) => (
@@ -247,65 +234,54 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
   },
-  // Floating title: absolutely positioned, moves from hero → sticky header
   floatingTitle: {
     position: 'absolute',
     left: 0,
     right: 0,
     top: 0,
     zIndex: 20,
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    paddingLeft: Layout.spacing.xl,
   },
   floatingHeroText: {
     fontSize: 56,
     fontWeight: '900',
     letterSpacing: -1,
     lineHeight: 60,
-    textAlign: 'center',
-    textShadowColor: 'rgba(100,160,255,0.9)',
+    textAlign: 'left',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 4,
   },
-  floatingHeaderText: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    fontSize: 17,
-    fontWeight: '800',
-    letterSpacing: 3,
-    textAlign: 'center',
-  },
   heroContent: {
-    flex: 1,
-    justifyContent: 'center',
     paddingHorizontal: Layout.spacing.xl,
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   greeting: {
     fontSize: 16,
     fontWeight: '400',
     letterSpacing: 0.3,
-    marginBottom: Layout.spacing.sm,
-    textAlign: 'center',
+    marginBottom: Layout.spacing.xl,
+    textAlign: 'left',
   },
-  // Invisible spacer that reserves layout space where the floating hero title sits
   titleSpacer: {
     height: 120,
-    marginBottom: Layout.spacing.md,
+    marginBottom: Layout.spacing.xl,
   },
   heroSubtitle: {
     fontSize: 17,
     fontWeight: '300',
     letterSpacing: 0.2,
-    textAlign: 'center',
+    textAlign: 'left',
   },
   hintContainer: {
+    position: 'absolute',
+    bottom: 110,
+    left: 0,
+    right: 0,
     alignItems: 'center',
-    paddingBottom: 110,
   },
   categoriesSection: {
-    paddingTop: Layout.spacing.xl,
+    paddingTop: 0,
   },
   categoriesTitle: {
     fontSize: 22,

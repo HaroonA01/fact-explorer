@@ -60,7 +60,7 @@ export default function CategoryScreen() {
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </Pressable>
         <View style={styles.headerCenter}>
-          <Text style={[styles.categoryLabel, { color: colors.text }]}>{category.name}</Text>
+          <Text style={[styles.categoryLabel, { color: category.color }]}>{category.name}</Text>
           <Text style={[styles.factCount, { color: colors.textTertiary }]}>
             {activeIndex + 1} of {facts.length}
           </Text>
@@ -96,6 +96,7 @@ export default function CategoryScreen() {
         showsHorizontalScrollIndicator={false}
         snapToInterval={SCREEN_WIDTH}
         decelerationRate="fast"
+        bounces={false}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
         renderItem={({ item, index }) => (
