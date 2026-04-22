@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import React, { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -25,6 +26,7 @@ export function CompactFactCard({ fact, animIndex = 0 }: Props) {
 
   const translateY = useSharedValue(22);
   const opacity = useSharedValue(0);
+  const pressScale = useSharedValue(1);
 
   useEffect(() => {
     const delay = Math.min(animIndex, 8) * 55;
@@ -35,18 +37,27 @@ export function CompactFactCard({ fact, animIndex = 0 }: Props) {
 
   const animStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
-    transform: [{ translateY: translateY.value }],
+    transform: [{ translateY: translateY.value }, { scale: pressScale.value }],
   }));
+
+  function handlePress() {
+    Haptics.selectionAsync();
+    router.push(`/category/${fact.categoryId}?factId=${fact.id}`);
+  }
 
   return (
     <Animated.View style={animStyle}>
       <Pressable
-        onPress={() => router.push(`/category/${fact.categoryId}?factId=${fact.id}`)}
-        style={({ pressed }) => [
-          styles.card,
-          { backgroundColor: colors.surface },
-          pressed && styles.pressed,
-        ]}
+        onPress={handlePress}
+        onPressIn={() => {
+          pressScale.value = withSpring(0.97, { damping: 18, stiffness: 400 });
+        }}
+        onPressOut={() => {
+          pressScale.value = withSpring(1, { damping: 14, stiffness: 320 });
+        }}
+        accessibilityRole="button"
+        accessibilityLabel={`${category?.name ?? ''} fact: ${fact.title}`}
+        style={[styles.card, { backgroundColor: colors.surface }]}
       >
         {/* Category colour strip */}
         <View style={[styles.colorStrip, { backgroundColor: category?.color ?? colors.accent }]} />
@@ -82,10 +93,6 @@ const styles = StyleSheet.create({
     elevation: 3,
     flexDirection: 'row',
     overflow: 'hidden',
-  },
-  pressed: {
-    opacity: 0.82,
-    transform: [{ scale: 0.99 }],
   },
   colorStrip: {
     width: 3,

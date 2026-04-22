@@ -1,6 +1,12 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { SectionList, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CompactFactCard } from '../../src/components/CompactFactCard';
 import { useTheme } from '../../src/contexts/ThemeContext';
@@ -22,6 +28,20 @@ export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
   const { colors, heroGradient } = useTheme();
 
+  const headerOpacity = useSharedValue(0);
+  const headerTranslateY = useSharedValue(12);
+
+  useEffect(() => {
+    headerOpacity.value = withTiming(1, { duration: 360 });
+    headerTranslateY.value = withSpring(0, { damping: 20, stiffness: 220 });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const headerStyle = useAnimatedStyle(() => ({
+    opacity: headerOpacity.value,
+    transform: [{ translateY: headerTranslateY.value }],
+  }));
+
   return (
     <LinearGradient colors={heroGradient} style={styles.root}>
       <SectionList
@@ -30,12 +50,12 @@ export default function ExploreScreen() {
         contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}
         stickySectionHeadersEnabled={false}
         ListHeaderComponent={
-          <View style={[styles.header, { paddingTop: insets.top + Layout.spacing.md }]}>
+          <Animated.View style={[styles.header, { paddingTop: insets.top + Layout.spacing.md }, headerStyle]}>
             <Text style={[styles.title, { color: colors.text }]}>Explore</Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
               {FACTS.length} facts across {CATEGORIES.length} categories
             </Text>
-          </View>
+          </Animated.View>
         }
         renderSectionHeader={({ section: { category } }) => (
           <View style={styles.sectionHeader}>

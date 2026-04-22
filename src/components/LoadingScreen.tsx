@@ -81,7 +81,10 @@ type Props = {
 };
 
 export function LoadingScreen({ onFinish }: Props) {
-  const { heroGradient, particleColor } = useTheme();
+  const { heroGradient, particleColor, isDark, colors } = useTheme();
+  const wordmarkColor = isDark ? '#FFFFFF' : colors.text;
+  const taglineColor = isDark ? 'rgba(180,200,255,0.72)' : 'rgba(26,26,62,0.6)';
+  const ringColor = isDark ? 'rgba(100,160,255,0.45)' : 'rgba(26,26,62,0.25)';
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.92);
   const shimmerX = useSharedValue(-SCREEN_WIDTH);
@@ -183,13 +186,13 @@ export function LoadingScreen({ onFinish }: Props) {
       {PARTICLE_DATA.map((p) => (
         <Particle key={p.id} {...p} color={particleColor} />
       ))}
-      <Animated.View style={[styles.ring, ringStyle]} />
+      <Animated.View style={[styles.ring, { borderColor: ringColor }, ringStyle]} />
       <Animated.View style={[styles.content, contentStyle]}>
         <View style={styles.logoContainer}>
           <Animated.View style={[StyleSheet.absoluteFill, styles.shimmer, shimmerStyle]} />
-          <Animated.Text style={[styles.wordmark, glowStyle]}>FACT EXPLORER</Animated.Text>
+          <Animated.Text style={[styles.wordmark, { color: wordmarkColor }, glowStyle]}>FACT EXPLORER</Animated.Text>
         </View>
-        <Text style={styles.tagline}>Discover something new</Text>
+        <Text style={[styles.tagline, { color: taglineColor }]}>Discover something new</Text>
       </Animated.View>
     </Animated.View>
   );
@@ -208,7 +211,6 @@ const styles = StyleSheet.create({
     height: 130,
     borderRadius: 65,
     borderWidth: 1.5,
-    borderColor: 'rgba(100,160,255,0.45)',
   },
   content: {
     alignItems: 'center',
@@ -222,7 +224,6 @@ const styles = StyleSheet.create({
   wordmark: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#FFFFFF',
     letterSpacing: 4,
     textShadowColor: 'rgba(100,160,255,0.9)',
     textShadowOffset: { width: 0, height: 0 },
@@ -236,7 +237,6 @@ const styles = StyleSheet.create({
   },
   tagline: {
     fontSize: 15,
-    color: 'rgba(180,200,255,0.7)',
     fontWeight: '400',
     letterSpacing: 0.5,
   },

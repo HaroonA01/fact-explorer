@@ -1,7 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { SectionList, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CompactFactCard } from '../../src/components/CompactFactCard';
 import { useTheme } from '../../src/contexts/ThemeContext';
@@ -14,6 +23,33 @@ export default function SavedScreen() {
   const insets = useSafeAreaInsets();
   const { savedIds, loaded } = useSavedFacts();
   const { colors, heroGradient } = useTheme();
+
+  const headerOpacity = useSharedValue(0);
+  const headerTranslateY = useSharedValue(12);
+  const emptyIconScale = useSharedValue(1);
+
+  useEffect(() => {
+    headerOpacity.value = withTiming(1, { duration: 360 });
+    headerTranslateY.value = withSpring(0, { damping: 20, stiffness: 220 });
+    emptyIconScale.value = withRepeat(
+      withSequence(
+        withTiming(1.06, { duration: 1200, easing: Easing.inOut(Easing.quad) }),
+        withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.quad) }),
+      ),
+      -1,
+      false,
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const headerStyle = useAnimatedStyle(() => ({
+    opacity: headerOpacity.value,
+    transform: [{ translateY: headerTranslateY.value }],
+  }));
+
+  const emptyIconStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: emptyIconScale.value }],
+  }));
 
   const savedFacts = FACTS.filter((f) => savedIds.has(f.id));
 
@@ -39,14 +75,14 @@ export default function SavedScreen() {
           { paddingTop: insets.top + Layout.spacing.md, paddingBottom: insets.bottom + 90 },
         ]}
         ListHeaderComponent={
-          <View style={styles.header}>
+          <Animated.View style={[styles.header, headerStyle]}>
             <Text style={[styles.title, { color: colors.text }]}>Saved</Text>
             {loaded && totalCount > 0 && (
               <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
                 {totalCount} fact{totalCount !== 1 ? 's' : ''} saved
               </Text>
             )}
-          </View>
+          </Animated.View>
         }
         renderSectionHeader={({ section: { category, data } }) => (
           <View style={styles.sectionHeader}>
@@ -71,9 +107,9 @@ export default function SavedScreen() {
         ListEmptyComponent={
           loaded ? (
             <View style={styles.empty}>
-              <View style={[styles.emptyIcon, { backgroundColor: 'rgba(255,255,255,0.12)' }]}>
+              <Animated.View style={[styles.emptyIcon, { backgroundColor: 'rgba(255,255,255,0.12)' }, emptyIconStyle]}>
                 <Ionicons name="bookmark-outline" size={36} color="rgba(255,255,255,0.7)" />
-              </View>
+              </Animated.View>
               <Text style={[styles.emptyTitle, { color: colors.text }]}>Nothing saved yet</Text>
               <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
                 Tap the bookmark icon on any fact to save it here for later.

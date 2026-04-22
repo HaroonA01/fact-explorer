@@ -34,14 +34,16 @@ export function CategoryCard({ category, index: _index }: Props) {
     scale.value = withSpring(0.97, { damping: 15, stiffness: 400 }, () => {
       scale.value = withSpring(1, { damping: 15, stiffness: 400 });
     });
-    setTimeout(() => {
-      router.push(`/category/${category.id}`);
-    }, 100);
+    router.push(`/category/${category.id}`);
   }
 
   return (
     <Animated.View style={animStyle}>
-      <Pressable onPress={handlePress}>
+      <Pressable
+        onPress={handlePress}
+        accessibilityRole="button"
+        accessibilityLabel={`${category.name}, ${factCount} facts`}
+      >
         <GlassCard style={styles.card} intensity={50}>
           <View style={styles.inner}>
             <LinearGradient

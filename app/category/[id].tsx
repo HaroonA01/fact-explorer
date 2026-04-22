@@ -171,7 +171,12 @@ export default function CategoryScreen() {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             router.back();
           }}
-          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          style={({ pressed }) => [
+            styles.backButton,
+            pressed && styles.backButtonPressed,
+          ]}
         >
           <Ionicons name="chevron-back" size={24} color="rgba(255,255,255,0.9)" />
         </Pressable>
@@ -203,8 +208,14 @@ export default function CategoryScreen() {
           <Pressable
             key={i}
             onPress={() => {
-              flatListRef.current?.scrollToIndex({ index: i, animated: true });
+              if (i !== activeIndex) {
+                Haptics.selectionAsync();
+                flatListRef.current?.scrollToIndex({ index: i, animated: true });
+              }
             }}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`Go to fact ${i + 1} of ${facts.length}`}
             style={[
               styles.dot,
               {
@@ -264,6 +275,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: Layout.radius.full,
     backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  backButtonPressed: {
+    backgroundColor: 'rgba(255,255,255,0.28)',
+    transform: [{ scale: 0.92 }],
   },
   headerCenter: {
     flex: 1,

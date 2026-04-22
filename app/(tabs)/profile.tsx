@@ -1,7 +1,11 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import {
+  Alert,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -45,11 +49,17 @@ function useCountUp(target: number, duration = 1200) {
 
 function formatTime(ms: number): string {
   const totalMin = Math.floor(ms / 60000);
+  if (totalMin < 1) return '<1m';
   const hours = Math.floor(totalMin / 60);
   const mins = totalMin % 60;
   if (hours === 0) return `${mins}m`;
   return `${hours}h ${mins}m`;
 }
+
+const PREFS_KEYS = {
+  notifications: '@factexplorer/pref_notifications',
+  haptics: '@factexplorer/pref_haptics',
+};
 
 function useStatCardAnim(delayMs: number) {
   const opacity = useSharedValue(0);
@@ -94,10 +104,18 @@ function Row({
   last,
   colors,
 }: RowProps) {
+  const handlePress = onPress
+    ? () => {
+        Haptics.selectionAsync();
+        onPress();
+      }
+    : undefined;
   return (
     <TouchableOpacity
-      onPress={onPress}
+      onPress={handlePress}
       activeOpacity={onPress ? 0.7 : 1}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={label}
       style={[
         styles.row,
         { borderBottomColor: colors.separator },
@@ -208,8 +226,39 @@ export default function SettingsScreen() {
   const { colors, heroGradient, preference, setPreference, accentSchemeId, setAccentSchemeId } = useTheme();
   const { streak, totalTimeMs } = useStats();
   const { savedIds } = useSavedFacts();
-  const [notifications, setNotifications] = useState(false);
-  const [haptics, setHaptics] = useState(true);
+  const [notifications, setNotificationsState] = useState(false);
+  const [haptics, setHapticsState] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      AsyncStorage.getItem(PREFS_KEYS.notifications),
+      AsyncStorage.getItem(PREFS_KEYS.haptics),
+    ]).then(([n, h]) => {
+      if (n !== null) setNotificationsState(n === '1');
+      if (h !== null) setHapticsState(h === '1');
+    });
+  }, []);
+
+  function setNotifications(v: boolean) {
+    setNotificationsState(v);
+    AsyncStorage.setItem(PREFS_KEYS.notifications, v ? '1' : '0');
+    Haptics.selectionAsync();
+  }
+
+  function setHaptics(v: boolean) {
+    setHapticsState(v);
+    AsyncStorage.setItem(PREFS_KEYS.haptics, v ? '1' : '0');
+    if (v) Haptics.selectionAsync();
+  }
+
+  async function openURL(url: string) {
+    const supported = await Linking.canOpenURL(url);
+    if (supported) {
+      Linking.openURL(url);
+    } else {
+      Alert.alert('Unable to open', 'This link cannot be opened on your device.');
+    }
+  }
 
   const animStreak = useCountUp(streak);
   const animLikes = useCountUp(savedIds.size);
@@ -270,7 +319,7 @@ export default function SettingsScreen() {
             >
               <Text style={styles.statEmoji}>❤️</Text>
               <Text style={[styles.statValue, { color: colors.text }]}>{animLikes}</Text>
-              <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Likes</Text>
+              <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Saved</Text>
             </LinearGradient>
           </Animated.View>
         </View>
@@ -360,14 +409,14 @@ export default function SettingsScreen() {
             icon="star-outline"
             iconColor="#FF9500"
             label="Rate Fact Explorer"
-            onPress={() => {}}
+            onPress={() => openURL('https://apps.apple.com/app/idYOUR_APP_ID?action=write-review')}
             colors={colors}
           />
           <Row
             icon="shield-checkmark-outline"
             iconColor="#34C759"
             label="Privacy Policy"
-            onPress={() => {}}
+            onPress={() => openURL('https://factexplorer.app/privacy')}
             last
             colors={colors}
           />

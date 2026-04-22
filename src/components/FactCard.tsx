@@ -155,19 +155,26 @@ export function FactCard({ fact, visible = true, scrollX, index }: Props) {
             {/* Save button with burst animation */}
             <Pressable
               onPress={handleBookmark}
-              style={[styles.actionButton, { backgroundColor: categoryColor + '18' }]}
+              accessibilityRole="button"
+              accessibilityLabel={saved ? 'Remove from saved' : 'Save fact'}
+              accessibilityState={{ selected: saved }}
+              style={({ pressed }) => [
+                styles.actionButton,
+                { backgroundColor: categoryColor + (saved ? '24' : '18') },
+                pressed && styles.actionButtonPressed,
+              ]}
             >
               <Animated.View style={saveIconStyle}>
                 <Ionicons
                   name={saved ? 'bookmark' : 'bookmark-outline'}
                   size={20}
-                  color={saved ? categoryColor : colors.textTertiary}
+                  color={saved ? categoryColor : colors.textSecondary}
                 />
               </Animated.View>
               <Text
                 style={[
                   styles.actionLabel,
-                  { color: saved ? categoryColor : colors.textTertiary },
+                  { color: saved ? categoryColor : colors.textSecondary },
                 ]}
               >
                 {saved ? 'Saved' : 'Save'}
@@ -176,10 +183,16 @@ export function FactCard({ fact, visible = true, scrollX, index }: Props) {
 
             <Pressable
               onPress={handleShare}
-              style={[styles.actionButton, { backgroundColor: categoryColor + '18' }]}
+              accessibilityRole="button"
+              accessibilityLabel="Share fact"
+              style={({ pressed }) => [
+                styles.actionButton,
+                { backgroundColor: colors.separator },
+                pressed && styles.actionButtonPressed,
+              ]}
             >
-              <Ionicons name="share-outline" size={20} color={colors.textTertiary} />
-              <Text style={[styles.actionLabel, { color: colors.textTertiary }]}>Share</Text>
+              <Ionicons name="share-outline" size={20} color={colors.textSecondary} />
+              <Text style={[styles.actionLabel, { color: colors.textSecondary }]}>Share</Text>
             </Pressable>
           </View>
         </Animated.View>
@@ -272,8 +285,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: Layout.spacing.md,
     borderRadius: Layout.radius.full,
   },
+  actionButtonPressed: {
+    opacity: 0.7,
+    transform: [{ scale: 0.97 }],
+  },
   actionLabel: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
+    letterSpacing: -0.1,
   },
 });
