@@ -3,7 +3,7 @@
     "name": "Fact Explorer",
     "slug": "fact-explorer",
     "scheme": "factexplorer",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -14,7 +14,13 @@
       "backgroundColor": "#F5F5F7"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "color": "#5E5CE6"
+        }
+      ]
     ],
     "ios": {
       "supportsTablet": false,

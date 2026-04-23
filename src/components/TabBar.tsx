@@ -69,7 +69,13 @@ function TabItemInner({
   }
 
   return (
-    <Pressable onPress={handlePress} style={styles.tabItem}>
+    <Pressable
+      onPress={handlePress}
+      style={styles.tabItem}
+      accessibilityRole="tab"
+      accessibilityLabel={tab.label}
+      accessibilityState={{ selected: isActive }}
+    >
       <Animated.View style={[styles.tabContent, scaleStyle]}>
         <Ionicons
           name={isActive ? tab.iconActive : tab.icon}

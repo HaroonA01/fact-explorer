@@ -42,7 +42,7 @@ export function CompactFactCard({ fact, animIndex = 0 }: Props) {
 
   function handlePress() {
     Haptics.selectionAsync();
-    router.push(`/category/${fact.categoryId}?factId=${fact.id}`);
+    router.push(`/fact/${fact.id}`);
   }
 
   return (

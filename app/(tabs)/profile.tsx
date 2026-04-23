@@ -22,8 +22,10 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { TimePickerModal } from '../../src/components/TimePickerModal';
 import { ThemePreference, useTheme } from '../../src/contexts/ThemeContext';
 import { AccentScheme, SCHEMES } from '../../src/data/schemes';
+import { useNotificationPrefs } from '../../src/hooks/useNotifications';
 import { useStats } from '../../src/hooks/useStats';
 import { useSavedFacts } from '../../src/hooks/useSavedFacts';
 import { Layout } from '../../src/constants/layout';
@@ -57,9 +59,12 @@ function formatTime(ms: number): string {
 }
 
 const PREFS_KEYS = {
-  notifications: '@factexplorer/pref_notifications',
   haptics: '@factexplorer/pref_haptics',
 };
+
+function formatHM(h: number, m: number) {
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+}
 
 function useStatCardAnim(delayMs: number) {
   const opacity = useSharedValue(0);
@@ -226,38 +231,45 @@ export default function SettingsScreen() {
   const { colors, heroGradient, preference, setPreference, accentSchemeId, setAccentSchemeId } = useTheme();
   const { streak, totalTimeMs } = useStats();
   const { savedIds } = useSavedFacts();
-  const [notifications, setNotificationsState] = useState(false);
+  const {
+    enabled: notifEnabled,
+    hour: notifHour,
+    minute: notifMinute,
+    setEnabled: setNotifEnabled,
+    setTime: setNotifTime,
+  } = useNotificationPrefs();
   const [haptics, setHapticsState] = useState(true);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [notifBusy, setNotifBusy] = useState(false);
 
   useEffect(() => {
-    Promise.all([
-      AsyncStorage.getItem(PREFS_KEYS.notifications),
-      AsyncStorage.getItem(PREFS_KEYS.haptics),
-    ]).then(([n, h]) => {
-      if (n !== null) setNotificationsState(n === '1');
+    AsyncStorage.getItem(PREFS_KEYS.haptics).then((h) => {
       if (h !== null) setHapticsState(h === '1');
     });
   }, []);
 
-  function setNotifications(v: boolean) {
-    setNotificationsState(v);
-    AsyncStorage.setItem(PREFS_KEYS.notifications, v ? '1' : '0');
+  async function toggleNotifications(v: boolean) {
+    if (notifBusy) return;
+    setNotifBusy(true);
     Haptics.selectionAsync();
+    const ok = await setNotifEnabled(v);
+    setNotifBusy(false);
+    if (v && !ok) {
+      Alert.alert(
+        'Permission needed',
+        'Enable notifications for Fact Explorer in Settings to receive daily facts.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ],
+      );
+    }
   }
 
   function setHaptics(v: boolean) {
     setHapticsState(v);
     AsyncStorage.setItem(PREFS_KEYS.haptics, v ? '1' : '0');
     if (v) Haptics.selectionAsync();
-  }
-
-  async function openURL(url: string) {
-    const supported = await Linking.canOpenURL(url);
-    if (supported) {
-      Linking.openURL(url);
-    } else {
-      Alert.alert('Unable to open', 'This link cannot be opened on your device.');
-    }
   }
 
   const animStreak = useCountUp(streak);
@@ -380,10 +392,20 @@ export default function SettingsScreen() {
             iconColor="#FF9500"
             label="Daily notifications"
             toggle
-            toggleValue={notifications}
-            onToggle={setNotifications}
+            toggleValue={notifEnabled}
+            onToggle={toggleNotifications}
             colors={colors}
           />
+          {notifEnabled && (
+            <Row
+              icon="time-outline"
+              iconColor={colors.accent}
+              label="Notify me at"
+              value={formatHM(notifHour, notifMinute)}
+              onPress={() => setPickerOpen(true)}
+              colors={colors}
+            />
+          )}
           <Row
             icon="phone-portrait-outline"
             iconColor={colors.accent}
@@ -402,26 +424,23 @@ export default function SettingsScreen() {
             icon="information-circle-outline"
             iconColor={colors.accent}
             label="Version"
-            value="1.0.0"
-            colors={colors}
-          />
-          <Row
-            icon="star-outline"
-            iconColor="#FF9500"
-            label="Rate Fact Explorer"
-            onPress={() => openURL('https://apps.apple.com/app/idYOUR_APP_ID?action=write-review')}
-            colors={colors}
-          />
-          <Row
-            icon="shield-checkmark-outline"
-            iconColor="#34C759"
-            label="Privacy Policy"
-            onPress={() => openURL('https://factexplorer.app/privacy')}
+            value="2.0.0"
             last
             colors={colors}
           />
         </SectionBlock>
       </ScrollView>
+
+      <TimePickerModal
+        visible={pickerOpen}
+        initialHour={notifHour}
+        initialMinute={notifMinute}
+        onCancel={() => setPickerOpen(false)}
+        onConfirm={(h, m) => {
+          setNotifTime(h, m);
+          setPickerOpen(false);
+        }}
+      />
     </LinearGradient>
   );
 }

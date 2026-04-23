@@ -24,16 +24,15 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { FactCard } from '../../src/components/FactCard';
-import { useTheme } from '../../src/contexts/ThemeContext';
-import { Layout } from '../../src/constants/layout';
-import { CATEGORIES } from '../../src/data/categories';
-import { getFactsByCategory } from '../../src/data/facts';
+import { FactCard } from '../../../src/components/FactCard';
+import { useTheme } from '../../../src/contexts/ThemeContext';
+import { Layout } from '../../../src/constants/layout';
+import { CATEGORIES } from '../../../src/data/categories';
+import { getFactsByCategory } from '../../../src/data/facts';
+import { useReduceMotion } from '../../../src/hooks/useReduceMotion';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-
-// Ambient particles — smaller and subtler than home screen
 const PARTICLE_COUNT = 7;
 const PARTICLE_DATA = Array.from({ length: PARTICLE_COUNT }, (_, i) => ({
   id: i,
@@ -45,12 +44,13 @@ const PARTICLE_DATA = Array.from({ length: PARTICLE_COUNT }, (_, i) => ({
 }));
 
 function Particle({
-  x, y, size, delay, duration, color,
-}: (typeof PARTICLE_DATA)[0] & { color: string }) {
+  x, y, size, delay, duration, color, disabled,
+}: (typeof PARTICLE_DATA)[0] & { color: string; disabled: boolean }) {
   const ty = useSharedValue(0);
-  const opa = useSharedValue(0);
+  const opa = useSharedValue(disabled ? 0.12 : 0);
 
   useEffect(() => {
+    if (disabled) return;
     ty.value = withRepeat(
       withTiming(-80, { duration, easing: Easing.linear }),
       -1,
@@ -67,7 +67,7 @@ function Particle({
       false,
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [disabled]);
 
   const style = useAnimatedStyle(() => ({
     transform: [{ translateY: ty.value }],
@@ -77,6 +77,7 @@ function Particle({
   return (
     <Animated.View
       pointerEvents="none"
+      importantForAccessibility="no-hide-descendants"
       style={[
         styles.particle,
         { left: x, top: y, width: size, height: size, borderRadius: size / 2, backgroundColor: color },
@@ -86,10 +87,11 @@ function Particle({
   );
 }
 
-export default function CategoryScreen() {
+export default function CategoryReadScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { colors, heroGradient, particleColor } = useTheme();
+  const reduceMotion = useReduceMotion();
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef<any>(null);
   const mountedRef = useRef(false);
@@ -110,14 +112,16 @@ export default function CategoryScreen() {
     if (!category || facts.length === 0) return;
 
     const targetWidth = ((activeIndex + 1) / facts.length) * SCREEN_WIDTH;
-    progressWidth.value = withSpring(targetWidth, { damping: 20, stiffness: 200 });
+    progressWidth.value = reduceMotion
+      ? targetWidth
+      : withSpring(targetWidth, { damping: 20, stiffness: 200 });
 
-    // Skip counter animation on initial mount
     if (!mountedRef.current) {
       mountedRef.current = true;
       return;
     }
 
+    if (reduceMotion) return;
     counterOpacity.value = withSequence(
       withTiming(0, { duration: 90 }),
       withTiming(1, { duration: 150 }),
@@ -127,7 +131,7 @@ export default function CategoryScreen() {
       withTiming(0, { duration: 150 }),
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeIndex]);
+  }, [activeIndex, reduceMotion]);
 
   const progressStyle = useAnimatedStyle(() => ({
     width: progressWidth.value,
@@ -157,14 +161,12 @@ export default function CategoryScreen() {
 
   return (
     <LinearGradient colors={heroGradient} style={styles.root}>
-      {/* Ambient particles behind everything */}
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
         {PARTICLE_DATA.map((p) => (
-          <Particle key={p.id} {...p} color={particleColor} />
+          <Particle key={p.id} {...p} color={particleColor} disabled={reduceMotion} />
         ))}
       </View>
 
-      {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + Layout.spacing.sm }]}>
         <Pressable
           onPress={() => {
@@ -188,7 +190,10 @@ export default function CategoryScreen() {
             </Text>
           </View>
           <Animated.View style={counterStyle}>
-            <Text style={styles.factCount}>
+            <Text
+              style={styles.factCount}
+              accessibilityLabel={`Fact ${activeIndex + 1} of ${facts.length}`}
+            >
               {activeIndex + 1} of {facts.length}
             </Text>
           </Animated.View>
@@ -197,12 +202,10 @@ export default function CategoryScreen() {
         <View style={styles.backButton} />
       </View>
 
-      {/* Progress bar */}
       <View style={styles.progressTrack}>
         <Animated.View style={[styles.progressBar, { backgroundColor: category.color }, progressStyle]} />
       </View>
 
-      {/* Dot navigator */}
       <View style={styles.dots}>
         {facts.map((_, i) => (
           <Pressable
@@ -210,7 +213,7 @@ export default function CategoryScreen() {
             onPress={() => {
               if (i !== activeIndex) {
                 Haptics.selectionAsync();
-                flatListRef.current?.scrollToIndex({ index: i, animated: true });
+                flatListRef.current?.scrollToIndex({ index: i, animated: !reduceMotion });
               }
             }}
             hitSlop={8}
@@ -228,7 +231,6 @@ export default function CategoryScreen() {
         ))}
       </View>
 
-      {/* Fact pager */}
       <FlatList
         ref={flatListRef}
         data={facts}

@@ -95,8 +95,9 @@ export function FactCard({ fact, visible = true, scrollX, index }: Props) {
   }));
 
   async function handleShare() {
+    const url = `factexplorer://fact/${fact.id}`;
     await Share.share({
-      message: `${fact.title}\n\n${fact.body}\n\nDiscover more on Fact Explorer.`,
+      message: `${fact.title}\n\n${fact.body}\n\nRead in Fact Explorer: ${url}`,
       title: fact.title,
     });
   }
@@ -125,12 +126,16 @@ export function FactCard({ fact, visible = true, scrollX, index }: Props) {
         showsVerticalScrollIndicator={false}
       >
         {/* Image with parallax */}
-        <View style={styles.imageContainer}>
+        <View
+          style={styles.imageContainer}
+          importantForAccessibility="no-hide-descendants"
+        >
           <Animated.View style={[styles.imageWrapper, imageWrapperStyle]}>
             <Image
               source={{ uri: `https://picsum.photos/seed/${fact.imageId}/800/600` }}
               style={styles.image}
               resizeMode="cover"
+              accessible={false}
             />
           </Animated.View>
           <LinearGradient
@@ -148,8 +153,14 @@ export function FactCard({ fact, visible = true, scrollX, index }: Props) {
             </Text>
           </View>
 
-          <Text style={[styles.title, { color: colors.text }]}>{fact.title}</Text>
-          <Text style={[styles.body, { color: colors.textSecondary }]}>{fact.body}</Text>
+          <View
+            accessible
+            accessibilityRole="text"
+            accessibilityLabel={`${fact.title}. ${fact.body}`}
+          >
+            <Text style={[styles.title, { color: colors.text }]}>{fact.title}</Text>
+            <Text style={[styles.body, { color: colors.textSecondary }]}>{fact.body}</Text>
+          </View>
 
           <View style={[styles.actions, { borderTopColor: colors.separator }]}>
             {/* Save button with burst animation */}
